@@ -5,7 +5,7 @@ module.exports = {
   entry: {
     'background/index': './src/background/index.ts',
     'content/textCapture': './src/content/textCapture.ts',
-    'ui/popup': './src/ui/popup.ts'
+    'ui/popup': './src/ui/popup.tsx'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -15,14 +15,14 @@ module.exports = {
   module: {
     rules: [
       {
-        test: /\.ts$/,
+        test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/
       }
     ]
   },
   resolve: {
-    extensions: ['.ts', '.js']
+    extensions: ['.ts', '.tsx', '.js', '.jsx']
   },
   plugins: [
     new CopyPlugin({

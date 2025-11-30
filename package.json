@@ -12,11 +12,15 @@
   "dependencies": {
     "rxdb": "^15.0.0",
     "rxjs": "^7.8.1",
-    "dexie": "^3.2.4"
+    "dexie": "^3.2.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.254",
     "@types/node": "^20.10.0",
+    "@types/react": "^18.2.21",
+    "@types/react-dom": "^18.2.7",
     "copy-webpack-plugin": "^11.0.0",
     "ts-loader": "^9.5.1",
     "typescript": "^5.3.3",
