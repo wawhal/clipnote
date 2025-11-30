@@ -13,13 +13,36 @@ import { Message, MessageResponse } from './messages';
 
 // Listen for hotkey commands
 chrome.commands.onCommand.addListener(async (command: string) => {
-  if (command === 'capture-selection') {
-    // Send message to content script to get selected text
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
-    if (tab.id) {
-      chrome.tabs.sendMessage(tab.id, { type: 'get-selection' });
-    }
+  if (command !== 'capture-selection') return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || !tab.id || !tab.url) return;
+  // Skip chrome://, edge://, about: pages which disallow injection
+  if (/^(chrome|edge|about):\/\//.test(tab.url)) {
+    showNotification('Cannot capture on this page');
+    return;
+  }
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        const selectedText = window.getSelection()?.toString().trim() || '';
+        if (selectedText) {
+          chrome.runtime.sendMessage({
+            type: 'capture-text',
+            text: selectedText,
+            url: window.location.href
+          });
+        } else {
+          chrome.runtime.sendMessage({
+            type: 'show-notification',
+            message: 'No text selected'
+          });
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Injection failed', err);
+    showNotification('Capture failed');
   }
 });
 
@@ -128,6 +151,12 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
         success: true, 
         data: JSON.stringify(exportData, null, 2) 
       };
+    }
+    case 'show-notification': {
+      if ((message as any).message) {
+        showNotification((message as any).message);
+      }
+      return { success: true };
     }
     
     default:
