@@ -23,7 +23,13 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
       sendResponse({ success: true, text });
     } catch (err: any) {
       console.error('[ClipNote] OCR content error', err);
-      sendResponse({ success: false, error: err?.message || String(err) });
+      let errorMsg = 'Unknown error';
+      if (err) {
+        if (typeof err === 'string') errorMsg = err;
+        else if (err.message) errorMsg = err.message;
+        else errorMsg = JSON.stringify(err);
+      }
+      sendResponse({ success: false, error: errorMsg });
     }
   })();
   return true; // keep the message channel open for async sendResponse

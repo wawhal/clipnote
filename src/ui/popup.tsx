@@ -65,8 +65,8 @@ const useNotes = () => {
     }
   }, []);
 
-  const update = useCallback(async (id: string, content: string) => {
-    const res = await sendMessage<Note>({ type: 'update-note', id, content });
+  const update = useCallback(async (id: string, content: string, noteType?: Note['type']) => {
+    const res = await sendMessage<Note>({ type: 'update-note', id, content, noteType } as any);
     if (res.success && res.data) {
       setNotes((prev: Note[]) => prev.map((n: Note) => (n.id === id ? (res.data as Note) : n)));
     }
@@ -115,17 +115,20 @@ const QuickAdd: React.FC<QuickAddProps> = ({ onAdd }: QuickAddProps) => {
   );
 };
 
-interface NoteItemProps { note: Note; onUpdate: (id: string, content: string) => void; onDelete: (id: string) => void }
+interface NoteItemProps { note: Note; onUpdate: (id: string, content: string, noteType?: Note['type']) => void; onDelete: (id: string) => void }
 const NoteItem: React.FC<NoteItemProps> = ({ note, onUpdate, onDelete }: NoteItemProps) => {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(note.content);
-  useEffect(() => setDraft(note.content), [note.content]);
+  const isScreenshot = note.type === 'screenshot';
+  const [draft, setDraft] = useState(isScreenshot ? (note.text || '') : note.content);
+  useEffect(() => {
+    setDraft(isScreenshot ? (note.text || '') : note.content);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note.content, note.text]);
   const save = () => {
-    if (draft.trim() && draft !== note.content) onUpdate(note.id, draft.trim());
+    const currentDisplayed = isScreenshot ? (note.text || '') : note.content;
+    if (draft.trim() && draft !== currentDisplayed) onUpdate(note.id, draft.trim(), note.type);
     setEditing(false);
   };
-  
-  const isScreenshot = note.type === 'screenshot';
   const hasText = note.text || note.content;
   
   return (

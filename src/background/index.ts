@@ -133,48 +133,54 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab) return { success: false, error: 'No active tab' };
       
-      const dataUrl = await chrome.tabs.captureVisibleTab();
-      
-      // Use utility function for cropping
-      const croppedDataUrl = await cropImage(dataUrl, {
-        x: message.x,
-        y: message.y,
-        width: message.width,
-        height: message.height,
-        devicePixelRatio: message.devicePixelRatio,
-        scrollX: message.scrollX,
-        scrollY: message.scrollY
-      });
-
-      // Save screenshot note with empty text
-      const db = await getDatabase();
-      const note: Note = {
-        id: generateId(),
-        type: 'screenshot',
-        content: '',
-        text: '',
-        imageData: croppedDataUrl,
-        createdAt: Date.now(),
-        source: { url: message.url }
-      };
-      await db.notes.insert(note);
-
-      // Enqueue OCR processing
-      enqueueProcessing({ id: note.id, step: 'OCR', retries: 3 });
-
-      // Toast
       try {
-        const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (active?.id) {
-          chrome.tabs.sendMessage(active.id, { type: 'toast', text: 'ClipNote screenshot saved' }).catch(() => {
-            // Silently ignore - tab may have closed or navigated
-          });
-        }
-      } catch (err) {
-        // Tab query failed, ignore
-      }
+        const dataUrl = await chrome.tabs.captureVisibleTab();
+        
+        // Use utility function for cropping
+        const croppedDataUrl = await cropImage(dataUrl, {
+          x: message.x,
+          y: message.y,
+          width: message.width,
+          height: message.height,
+          devicePixelRatio: message.devicePixelRatio,
+          scrollX: message.scrollX,
+          scrollY: message.scrollY
+        });
 
-      return { success: true, data: note };
+        // Save screenshot note with empty text
+        const db = await getDatabase();
+        const note: Note = {
+          id: generateId(),
+          type: 'screenshot',
+          content: '',
+          text: '',
+          imageData: croppedDataUrl,
+          createdAt: Date.now(),
+          source: { url: message.url }
+        };
+        await db.notes.insert(note);
+
+        // Enqueue OCR processing
+        enqueueProcessing({ id: note.id, step: 'OCR', retries: 3 });
+
+        // Toast
+        try {
+          const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+          if (active?.id) {
+            chrome.tabs.sendMessage(active.id, { type: 'toast', text: 'ClipNote screenshot saved' }).catch(() => {
+              // Silently ignore - tab may have closed or navigated
+            });
+          }
+        } catch (err) {
+          // Tab query failed, ignore
+        }
+
+        return { success: true, data: note };
+      } catch (err: any) {
+        console.error('[ClipNote] Screenshot capture/crop failed', err);
+        showNotification(`Screenshot failed: ${err.message || 'Unknown error'}`);
+        return { success: false, error: err.message || 'Screenshot capture failed' };
+      }
     }
     
     case 'save-note': {
@@ -230,15 +236,20 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
     case 'update-note': {
       const doc = await db.notes.findOne(message.id).exec();
       if (doc) {
-  // atomicPatch ensures safe concurrent updates (fallback to manual save if unavailable)
-        if (typeof (doc as any).atomicPatch === 'function') {
-          await (doc as any).atomicPatch({ content: message.content });
+        // Decide which field to update: screenshot notes edit 'text', others edit 'content'
+        const isScreenshot = (message as any).noteType === 'screenshot' || (doc as any).type === 'screenshot';
+        const patch = isScreenshot ? { text: message.content } : { content: message.content };
+        // Prefer RxDB update plugin if available
+        if (typeof (doc as any).update === 'function') {
+          await (doc as any).update({ $set: patch });
+        } else if (typeof (doc as any).atomicPatch === 'function') {
+          await (doc as any).atomicPatch(patch);
         } else {
-          // Fallback if atomicPatch not available
-          (doc as any).content = message.content;
+          // Fallback: assign then save (may fail with getter-only docs)
+          Object.assign(doc as any, patch);
           await (doc as any).save();
         }
-        return { success: true, data: doc.toJSON() };
+        return { success: true, data: (await db.notes.findOne(message.id).exec())?.toJSON() };
       }
       return { success: false, error: 'Note not found' };
     }

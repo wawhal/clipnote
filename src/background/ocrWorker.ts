@@ -17,13 +17,29 @@ const tesseractOCR = async (imageBase64: string): Promise<string> => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) throw new Error('No active tab to run OCR');
   return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        reject(new Error('OCR content script did not respond in time'));
+      }
+    }, 15000);
+
     chrome.tabs.sendMessage(tab.id!, { type: 'perform-ocr', imageData: imageBase64 }, (response) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+
       if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
+        reject(new Error(`tabs.sendMessage error: ${chrome.runtime.lastError.message}`));
         return;
       }
-      if (!response?.success) {
-        reject(new Error(response?.error || 'OCR failed'));
+      if (!response) {
+        reject(new Error('No response from OCR content script'));
+        return;
+      }
+      if (!response.success) {
+        reject(new Error(response.error || 'OCR failed in content script'));
         return;
       }
       resolve(response.text || '');
@@ -48,20 +64,23 @@ export async function runOCR(item: QueueItem) {
       console.warn('[ClipNote] OCR: no imageData on note', { id: item.id });
       return;
     }
+    console.log('[ClipNote] OCR: image size', imageBase64.length);
 
     // implement OCR
-    const recognizedText = await tesseractOCR(imageBase64);
+  const recognizedText = await tesseractOCR(imageBase64);
+  console.log('[ClipNote] OCR: recognized text length', recognizedText?.length ?? 0);
 
-    // Persist recognized text back to the note
-    if (typeof (doc as any).atomicPatch === 'function') {
+    // Persist recognized text back to the note using update plugin
+    if (typeof (doc as any).update === 'function') {
+      await (doc as any).update({ $set: { text: recognizedText } });
+    } else if (typeof (doc as any).atomicPatch === 'function') {
       await (doc as any).atomicPatch({ text: recognizedText });
     } else {
-      (doc as any).text = recognizedText;
-      await (doc as any).save();
+      console.warn('[ClipNote] OCR: document update methods not available');
     }
 
     console.log('[ClipNote] OCR Completed', { id: item.id });
-  } catch (err) {
-    console.log('[ClipNote] OCR Error (stub)', err);
+  } catch (err: any) {
+    console.error('[ClipNote] OCR Error (stub)', err, err?.stack);
   }
 }

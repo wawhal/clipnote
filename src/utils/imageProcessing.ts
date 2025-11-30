@@ -16,7 +16,7 @@ export async function cropImage(
   imageDataUrl: string,
   params: CropParams
 ): Promise<string> {
-  const { x, y, width, height, devicePixelRatio, scrollX, scrollY } = params;
+  const { x, y, width, height, devicePixelRatio } = params;
   
   // Fetch and create bitmap
   const response = await fetch(imageDataUrl);
@@ -24,11 +24,18 @@ export async function cropImage(
   const imageBitmap = await createImageBitmap(blob);
   
   // Calculate crop region with DPR
+  // captureVisibleTab captures the visible viewport only, so coordinates are already viewport-relative
+  // We don't need to add scroll offsets
   const dpr = devicePixelRatio || 1;
-  const sx = Math.round((x + scrollX) * dpr);
-  const sy = Math.round((y + scrollY) * dpr);
-  const sw = Math.round(width * dpr);
-  const sh = Math.round(height * dpr);
+  const sx = Math.max(0, Math.round(x * dpr));
+  const sy = Math.max(0, Math.round(y * dpr));
+  const sw = Math.min(Math.round(width * dpr), imageBitmap.width - sx);
+  const sh = Math.min(Math.round(height * dpr), imageBitmap.height - sy);
+  
+  // Validate dimensions
+  if (sw <= 0 || sh <= 0) {
+    throw new Error('Invalid crop dimensions: selection is outside viewport');
+  }
   
   // Create offscreen canvas and crop
   const canvas = new OffscreenCanvas(sw, sh);
