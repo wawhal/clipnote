@@ -43,6 +43,11 @@ module.exports = {
           from: 'icons',
           to: 'icons',
           noErrorOnMissing: true
+        },
+        {
+          from: 'lib/tesseract',
+          to: 'lib/tesseract',
+          noErrorOnMissing: true
         }
       ]
     })

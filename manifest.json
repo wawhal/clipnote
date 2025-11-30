@@ -13,6 +13,12 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["lib/tesseract/eng.traineddata"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "background": {
     "service_worker": "background/index.js",
     "type": "module"

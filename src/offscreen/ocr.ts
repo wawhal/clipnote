@@ -32,14 +32,14 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
       const engine = await createOCREngine();
       console.log('[ClipNote Offscreen] ✓ OCR engine created successfully');
       
-      console.log('[ClipNote Offscreen] Step 4: Fetching English model from CDN...');
-      const modelUrl = 'https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata';
-      console.log('[ClipNote Offscreen] Fetching from:', modelUrl);
+      console.log('[ClipNote Offscreen] Step 4: Loading English model from local bundle...');
+      const modelUrl = chrome.runtime.getURL('lib/tesseract/eng.traineddata');
+      console.log('[ClipNote Offscreen] Loading from:', modelUrl);
       const modelResponse = await fetch(modelUrl);
       console.log('[ClipNote Offscreen] Model response status:', modelResponse.status, modelResponse.statusText);
       
       if (!modelResponse.ok) {
-        throw new Error(`Failed to fetch model: ${modelResponse.status} ${modelResponse.statusText}`);
+        throw new Error(`Failed to load local model: ${modelResponse.status} ${modelResponse.statusText}`);
       }
       
       const modelData = await modelResponse.arrayBuffer();
