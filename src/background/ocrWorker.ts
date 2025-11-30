@@ -1,17 +1,41 @@
 /**
- * OCR Worker using Tesseract.js (WASM)
- * Processes screenshot notes and updates their text.
+ * OCR Worker using offscreen document
+ * Service workers can't use DOM APIs, so we delegate to offscreen document
  */
 import { getDatabase } from '../db';
 import type { QueueItem } from './processingQueue';
+
+let offscreenCreated = false;
+
+async function ensureOffscreenDocument() {
+  if (offscreenCreated) return;
+  
+  // Check if offscreen document already exists
+  const offscreenUrl = chrome.runtime.getURL('offscreen/ocr.html');
+  const matchedClients = await (self as any).clients?.matchAll();
+  
+  const hasOffscreen = matchedClients?.some((client: any) => 
+    client.url === offscreenUrl
+  );
+  
+  if (hasOffscreen) {
+    offscreenCreated = true;
+    return;
+  }
+  
+  await chrome.offscreen.createDocument({
+    url: 'offscreen/ocr.html',
+    reasons: ['BLOBS' as any],
+    justification: 'OCR processing requires DOM APIs for Tesseract.js'
+  });
+  
+  offscreenCreated = true;
+}
 
 export async function runOCR(item: QueueItem) {
   console.log('Starting OCR for note:', item.id);
   
   try {
-    // Dynamic import
-    const Tesseract = await import('tesseract.js');
-    
     const db = await getDatabase();
     const doc = await db.notes.findOne(item.id).exec();
     if (!doc) {
@@ -25,16 +49,24 @@ export async function runOCR(item: QueueItem) {
       return;
     }
 
-    console.log('Running Tesseract on image...');
+    // Ensure offscreen document exists
+    await ensureOffscreenDocument();
     
-    // Use createWorker for proper initialization
-    const worker = await Tesseract.createWorker();
-    await worker.loadLanguage('eng');
-    await worker.initialize('eng');
-    const { data: { text } } = await worker.recognize(data.imageData);
-    await worker.terminate();
+    console.log('Sending OCR request to offscreen document...');
     
-    console.log('OCR extracted text:', text.substring(0, 100));
+    // Send to offscreen document and wait for response
+    const response = await chrome.runtime.sendMessage({
+      type: 'run-ocr',
+      imageData: data.imageData,
+      noteId: item.id
+    });
+    
+    if (!response.success) {
+      throw new Error(response.error);
+    }
+    
+    const text = response.text || '';
+    console.log('OCR extracted text length:', text.length);
     
     // Update the note with extracted text
     if (typeof (doc as any).atomicPatch === 'function') {
