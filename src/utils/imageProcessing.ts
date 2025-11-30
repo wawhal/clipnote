@@ -23,29 +23,32 @@ export async function cropImage(
   const blob = await response.blob();
   const imageBitmap = await createImageBitmap(blob);
   
-  // Calculate crop region with DPR
-  // captureVisibleTab captures the visible viewport only, so coordinates are already viewport-relative
-  // We don't need to add scroll offsets
+  // Apply device pixel ratio to coordinates
+  // captureVisibleTab returns image at actual pixel density
   const dpr = devicePixelRatio || 1;
   const sx = Math.max(0, Math.round(x * dpr));
   const sy = Math.max(0, Math.round(y * dpr));
-  const sw = Math.min(Math.round(width * dpr), imageBitmap.width - sx);
-  const sh = Math.min(Math.round(height * dpr), imageBitmap.height - sy);
+  const sw = Math.round(width * dpr);
+  const sh = Math.round(height * dpr);
+  
+  // Clamp to image bounds
+  const cropWidth = Math.min(sw, imageBitmap.width - sx);
+  const cropHeight = Math.min(sh, imageBitmap.height - sy);
   
   // Validate dimensions
-  if (sw <= 0 || sh <= 0) {
-    throw new Error('Invalid crop dimensions: selection is outside viewport');
+  if (cropWidth <= 0 || cropHeight <= 0) {
+    throw new Error(`Invalid crop: selection outside viewport (sx=${sx}, sy=${sy}, sw=${sw}, sh=${sh}, imgW=${imageBitmap.width}, imgH=${imageBitmap.height})`);
   }
   
-  // Create offscreen canvas and crop
-  const canvas = new OffscreenCanvas(sw, sh);
+  // Create canvas and crop
+  const canvas = new OffscreenCanvas(cropWidth, cropHeight);
   const ctx = canvas.getContext('2d');
   
   if (!ctx) {
     throw new Error('Failed to get canvas context');
   }
   
-  ctx.drawImage(imageBitmap, sx, sy, sw, sh, 0, 0, sw, sh);
+  ctx.drawImage(imageBitmap, sx, sy, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
   
   // Convert to blob and data URL
   const croppedBlob = await canvas.convertToBlob({ type: 'image/png' });

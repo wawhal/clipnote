@@ -9,6 +9,7 @@ module.exports = {
     'content/screenshotOverlay': './src/content/screenshotOverlay.ts',
     'content/hotkeyListener': './src/content/hotkeyListener.ts',
     'content/ocrContent': './src/content/ocrContent.ts',
+    'offscreen/ocr': './src/offscreen/ocr.ts',
     'ui/popup': './src/ui/popup.tsx'
   },
   output: {
@@ -34,6 +35,7 @@ module.exports = {
         { from: 'manifest.json', to: 'manifest.json' },
         { from: 'src/ui/popup.html', to: 'src/ui/popup.html' },
         { from: 'src/ui/styles.css', to: 'src/ui/styles.css' },
+        { from: 'src/offscreen/ocr.html', to: 'src/offscreen/ocr.html' },
         { 
           from: 'icons',
           to: 'icons',

@@ -7,43 +7,64 @@ import type { QueueItem } from './processingQueue';
 import { getDatabase } from '../db';
 
 /**
- * Run OCR on a base64 image using Tesseract.js
- * Returns recognized text.
+ * Ensure offscreen document exists for OCR processing
  */
+async function ensureOffscreenDocument() {
+  // @ts-ignore - offscreen API may not be in all Chrome types
+  const existingContexts = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT']
+  });
+  
+  if (existingContexts.length > 0) {
+    return; // Already exists
+  }
+  
+  // Create offscreen document
+  // @ts-ignore - offscreen API
+  await chrome.offscreen.createDocument({
+    url: 'src/offscreen/ocr.html',
+    reasons: ['WORKERS' as any],
+    justification: 'Run OCR processing with Tesseract.js Web Workers'
+  });
+}
+
 /**
- * Delegate OCR to content script where Web Worker is available.
+ * Run OCR using offscreen document (not affected by page CSP)
  */
 const tesseractOCR = async (imageBase64: string): Promise<string> => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) throw new Error('No active tab to run OCR');
+  await ensureOffscreenDocument();
+  
   return new Promise<string>((resolve, reject) => {
     let settled = false;
     const timeout = setTimeout(() => {
       if (!settled) {
         settled = true;
-        reject(new Error('OCR content script did not respond in time'));
+        reject(new Error('OCR offscreen document did not respond in time'));
       }
-    }, 15000);
+    }, 30000); // Longer timeout for OCR processing
 
-    chrome.tabs.sendMessage(tab.id!, { type: 'perform-ocr', imageData: imageBase64 }, (response) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
+    chrome.runtime.sendMessage(
+      { type: 'perform-ocr-offscreen', imageData: imageBase64 },
+      (response) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
 
-      if (chrome.runtime.lastError) {
-        reject(new Error(`tabs.sendMessage error: ${chrome.runtime.lastError.message}`));
-        return;
+        if (chrome.runtime.lastError) {
+          reject(new Error(`Offscreen message error: ${chrome.runtime.lastError.message}`));
+          return;
+        }
+        if (!response) {
+          reject(new Error('No response from OCR offscreen document'));
+          return;
+        }
+        if (!response.success) {
+          reject(new Error(response.error || 'OCR failed in offscreen document'));
+          return;
+        }
+        resolve(response.text || '');
       }
-      if (!response) {
-        reject(new Error('No response from OCR content script'));
-        return;
-      }
-      if (!response.success) {
-        reject(new Error(response.error || 'OCR failed in content script'));
-        return;
-      }
-      resolve(response.text || '');
-    });
+    );
   });
 };
 
