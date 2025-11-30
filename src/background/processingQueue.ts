@@ -10,7 +10,7 @@ export interface QueueItem {
   retries: number;
 }
 
-// OCR worker will be loaded dynamically to keep background light
+import { runOCR } from './ocrWorker'; // static import avoids dynamic chunk loader needing document
 
 const queue: QueueItem[] = [];
 let running = false;
@@ -27,9 +27,7 @@ async function runNext() {
   running = true;
   try {
     if (next.step === 'OCR') {
-      // @ts-ignore - dynamic import of local module without type declaration
-      const mod = await import('./ocrWorker');
-      await mod.runOCR(next);
+      await runOCR(next);
     }
     // Future steps can be added here
   } catch (err) {

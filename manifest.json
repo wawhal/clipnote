@@ -1,14 +1,13 @@
 {
   "manifest_version": 3,
   "name": "ClipNote",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Offline-first, lightning-fast second brain for capturing thoughts instantly",
   "permissions": [
     "storage",
     "activeTab",
     "notifications",
-    "scripting",
-    "offscreen"
+    "scripting"
   ],
   "background": {
     "service_worker": "background/index.js",
