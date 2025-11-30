@@ -6,6 +6,7 @@ module.exports = {
     'background/index': './src/background/index.ts',
     'content/textCapture': './src/content/textCapture.ts',
     'content/toast': './src/content/toast.ts',
+    'content/screenshotOverlay': './src/content/screenshotOverlay.ts',
     'ui/popup': './src/ui/popup.tsx'
   },
   output: {

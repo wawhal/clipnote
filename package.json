@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "Offline-first, lightning-fast second brain for capturing thoughts instantly",
   "private": true,
-  "type": "module",
   "scripts": {
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch",

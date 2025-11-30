@@ -13,6 +13,15 @@ import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { notesSchema } from './notesCollection';
 import { NoteDocument } from './types';
 
+// Suppress RxDB ReStorage promotional warning
+if (typeof window !== 'undefined' && (window as any).RxDB) {
+  try {
+    (window as any).RxDB.setPremiumFlag();
+  } catch (e) {
+    // Ignore if method doesn't exist
+  }
+}
+
 // Enable dev mode in development
 // Guard access to process so the code works in the browser service worker context
 if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') {

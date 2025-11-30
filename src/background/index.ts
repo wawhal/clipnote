@@ -93,10 +93,12 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (tab?.id) {
-          chrome.tabs.sendMessage(tab.id, { type: 'toast', text: 'ClipNote saved' });
+          chrome.tabs.sendMessage(tab.id, { type: 'toast', text: 'ClipNote saved' }).catch(() => {
+            // Silently ignore - tab may have closed or navigated
+          });
         }
       } catch (err) {
-        console.error('Failed to send toast:', err);
+        // Tab query failed, ignore
       }
       
       return { success: true, data: note };
@@ -140,8 +142,14 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
       // Toast
       try {
         const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (active?.id) chrome.tabs.sendMessage(active.id, { type: 'toast', text: 'ClipNote screenshot saved' });
-      } catch (err) {}
+        if (active?.id) {
+          chrome.tabs.sendMessage(active.id, { type: 'toast', text: 'ClipNote screenshot saved' }).catch(() => {
+            // Silently ignore - tab may have closed or navigated
+          });
+        }
+      } catch (err) {
+        // Tab query failed, ignore
+      }
 
       return { success: true, data: note };
     }
@@ -156,8 +164,14 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
       };
       
       await db.notes.insert(note);
-      // Emit toast when note added via popup
-      chrome.runtime.sendMessage({ type: 'toast', text: 'ClipNote saved' });
+      // Emit toast when note added via popup - wrap in try/catch to avoid errors
+      try {
+        chrome.runtime.sendMessage({ type: 'toast', text: 'ClipNote saved' }).catch(() => {
+          // No listeners, ignore
+        });
+      } catch (err) {
+        // Runtime not available, ignore
+      }
       
       return { success: true, data: note };
     }
