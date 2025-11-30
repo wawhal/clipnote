@@ -16,7 +16,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content/hotkeyListener.js", "content/textCapture.js", "content/toast.js", "content/screenshotOverlay.js"],
+      "js": ["content/hotkeyListener.js", "content/textCapture.js", "content/toast.js", "content/screenshotOverlay.js", "content/ocrContent.js"],
       "run_at": "document_start"
     }
   ],

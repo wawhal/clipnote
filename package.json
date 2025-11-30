@@ -14,10 +14,12 @@
   },
   "dependencies": {
     "dexie": "^3.2.4",
+    "node-tesseract-ocr": "^2.2.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "rxdb": "^15.0.0",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "tesseract.js": "^6.0.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",

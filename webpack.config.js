@@ -8,6 +8,7 @@ module.exports = {
     'content/toast': './src/content/toast.ts',
     'content/screenshotOverlay': './src/content/screenshotOverlay.ts',
     'content/hotkeyListener': './src/content/hotkeyListener.ts',
+    'content/ocrContent': './src/content/ocrContent.ts',
     'ui/popup': './src/ui/popup.tsx'
   },
   output: {
