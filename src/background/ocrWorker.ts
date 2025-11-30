@@ -103,6 +103,7 @@ export async function runOCR(item: QueueItem) {
     const recognizedText = await tesseractOCR(imageBase64);
     console.log('[ClipNote] OCR: recognized text length', recognizedText?.length ?? 0);
 
+    // Update the note with the recognized text
     if (typeof (doc as any).update === 'function') {
       await (doc as any).update({ $set: { text: recognizedText } });
     } else if (typeof (doc as any).atomicPatch === 'function') {

@@ -16,10 +16,10 @@ export interface Note {
     selection?: string;
   };
   
-  // Future fields (allowed but unused in v0)
-  imageData?: string;
-  text?: string;
-  raw?: any;
+  // V1 screenshot/OCR fields
+  imageData?: string; // Base64 screenshot
+  text?: string; // OCR extracted text
+  raw?: any; // Raw data if needed
 }
 
 export interface NoteDocument extends Note {
