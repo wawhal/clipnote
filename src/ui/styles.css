@@ -132,6 +132,8 @@ body {
 /* Notes Section */
 .notes-section {
   padding: 8px 10px 10px;
+  overflow-y: auto;
+  max-height: 400px;
 }
 
 .notes-header {
@@ -241,6 +243,14 @@ body {
   left: 0;
   color: #667eea;
   font-weight: bold;
+}
+
+.load-more-indicator {
+  text-align: center;
+  padding: 8px;
+  font-size: 11.5px;
+  color: #9ca3af;
+  font-style: italic;
 }
 
 kbd {

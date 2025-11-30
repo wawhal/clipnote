@@ -10,6 +10,7 @@
 import { getDatabase, generateId } from '../db';
 import { Note } from '../db/types';
 import { Message, MessageResponse } from './messages';
+import { enqueueProcessing } from './processingQueue';
 
 // Listen for hotkey commands
 chrome.commands.onCommand.addListener(async (command: string) => {
@@ -21,6 +22,9 @@ chrome.commands.onCommand.addListener(async (command: string) => {
     showNotification('Cannot capture on this page');
     return;
   }
+  
+  const tabId = tab.id; // Store tabId for later use
+  
   try {
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
@@ -33,10 +37,8 @@ chrome.commands.onCommand.addListener(async (command: string) => {
             url: window.location.href
           });
         } else {
-          chrome.runtime.sendMessage({
-            type: 'show-notification',
-            message: 'No text selected'
-          });
+          // Open screenshot overlay when no selection
+          chrome.runtime.sendMessage({ type: 'start-screenshot' });
         }
       }
     });
@@ -84,14 +86,63 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
       
       await db.notes.insert(note);
       
-      // Show notification and send toast to the active tab page
+      // Show notification
       showNotification('ClipNote saved');
       
-      // Send toast message to the tab that triggered the capture
-      if (sender.tab?.id) {
-        chrome.tabs.sendMessage(sender.tab.id, { type: 'toast', text: 'ClipNote saved' });
+      // Send toast to the active tab
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.id) {
+          chrome.tabs.sendMessage(tab.id, { type: 'toast', text: 'ClipNote saved' });
+        }
+      } catch (err) {
+        console.error('Failed to send toast:', err);
       }
       
+      return { success: true, data: note };
+    }
+    case 'screenshot-rect': {
+      // Capture visible tab and crop to selection
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab) return { success: false, error: 'No active tab' };
+      const dataUrl = await chrome.tabs.captureVisibleTab();
+      // Create offscreen canvas to crop
+      const imageBitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
+      const dpr = message.devicePixelRatio || 1;
+      const sx = Math.round((message.x + message.scrollX) * dpr);
+      const sy = Math.round((message.y + message.scrollY) * dpr);
+      const sw = Math.round(message.width * dpr);
+      const sh = Math.round(message.height * dpr);
+
+      const off = new OffscreenCanvas(sw, sh);
+      const ctx = off.getContext('2d');
+      if (!ctx) return { success: false, error: 'Canvas context failed' };
+      ctx.drawImage(imageBitmap, sx, sy, sw, sh, 0, 0, sw, sh);
+      const croppedBlob = await off.convertToBlob({ type: 'image/png' });
+      const croppedDataUrl = await blobToDataURL(croppedBlob);
+
+      // Save screenshot note with empty text
+      const db = await getDatabase();
+      const note: Note = {
+        id: generateId(),
+        type: 'screenshot',
+        content: '',
+        text: '',
+        imageData: croppedDataUrl,
+        createdAt: Date.now(),
+        source: { url: message.url }
+      };
+      await db.notes.insert(note);
+
+      // Enqueue OCR processing
+      enqueueProcessing({ id: note.id, step: 'OCR', retries: 3 });
+
+      // Toast
+      try {
+        const [active] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (active?.id) chrome.tabs.sendMessage(active.id, { type: 'toast', text: 'ClipNote screenshot saved' });
+      } catch (err) {}
+
       return { success: true, data: note };
     }
     
@@ -113,9 +164,14 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
     
     case 'get-notes': {
       // Sort newest first using MangoQuery direction keywords
+      const limit = message.limit || 20;
+      const skip = message.skip || 0;
+      
       const noteDocs = await db.notes
         .find()
         .sort({ createdAt: 'desc' })
+        .skip(skip)
+        .limit(limit)
         .exec();
       return {
         success: true,
@@ -181,5 +237,13 @@ function showNotification(message: string) {
     title: 'ClipNote',
     message: message,
     priority: 0
+  });
+}
+
+async function blobToDataURL(blob: Blob): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
   });
 }

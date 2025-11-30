@@ -11,8 +11,10 @@ import { Note } from '../db/types';
 
 export type Message =
   | { type: 'capture-text'; text: string; url: string }
+  | { type: 'start-screenshot' }
+  | { type: 'screenshot-rect'; x: number; y: number; width: number; height: number; devicePixelRatio: number; scrollX: number; scrollY: number; url: string }
   | { type: 'save-note'; note: Omit<Note, 'id' | 'createdAt'> }
-  | { type: 'get-notes' }
+  | { type: 'get-notes'; limit?: number; skip?: number }
   | { type: 'notes-response'; notes: Note[] }
   | { type: 'delete-note'; id: string }
   | { type: 'update-note'; id: string; content: string }

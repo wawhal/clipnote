@@ -1,5 +1,6 @@
 /** React-based popup implementation */
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import * as React from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Note } from '../db/types';
 import { Message, MessageResponse } from '../background/messages';
@@ -28,17 +29,30 @@ function formatDate(ts: number): string {
 const useNotes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [state, setState] = useState<LoadState>('idle');
+  const [hasMore, setHasMore] = useState(true);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (skip = 0) => {
     setState('loading');
-    const res = await sendMessage<Note[]>({ type: 'get-notes' });
+    const res = await sendMessage<Note[]>({ type: 'get-notes', limit: 20, skip });
     if (res.success && res.data) {
-      setNotes(res.data);
+      if (skip === 0) {
+        setNotes(res.data);
+      } else {
+        setNotes((prev: Note[]) => [...prev, ...(res.data || [])]);
+      }
+      if (res.data.length < 20) {
+        setHasMore(false);
+      }
       setState('idle');
     } else {
       setState('error');
     }
   }, []);
+
+  const loadMore = useCallback(async () => {
+    if (!hasMore || state === 'loading') return;
+    await load(notes.length);
+  }, [hasMore, state, notes.length, load]);
 
   const add = useCallback(async (content: string) => {
     if (!content.trim()) return;
@@ -78,7 +92,7 @@ const useNotes = () => {
     }
   }, []);
 
-  return { notes, state, load, add, update, remove, exportJSON };
+  return { notes, state, hasMore, load, loadMore, add, update, remove, exportJSON };
 };
 
 interface QuickAddProps { onAdd: (content: string) => void }
@@ -136,8 +150,20 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onUpdate, onDelete }: NoteIte
   );
 };
 
-interface NotesSectionProps { notes: Note[]; onUpdate: (id: string, c: string) => void; onDelete: (id: string) => void; onExport: () => void }
-const NotesSection: React.FC<NotesSectionProps> = ({ notes, onUpdate, onDelete, onExport }: NotesSectionProps) => {
+interface NotesSectionProps { notes: Note[]; onUpdate: (id: string, c: string) => void; onDelete: (id: string) => void; onExport: () => void; onLoadMore: () => void; hasMore: boolean }
+const NotesSection: React.FC<NotesSectionProps> = ({ notes, onUpdate, onDelete, onExport, onLoadMore, hasMore }: NotesSectionProps) => {
+  const containerRef = useCallback((node: HTMLElement | null) => {
+    if (!node) return;
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = node;
+      if (scrollHeight - scrollTop - clientHeight < 50 && hasMore) {
+        onLoadMore();
+      }
+    };
+    node.addEventListener('scroll', handleScroll);
+    return () => node.removeEventListener('scroll', handleScroll);
+  }, [hasMore, onLoadMore]);
+
   if (!notes.length) {
     return (
       <div className="empty-state">
@@ -150,7 +176,7 @@ const NotesSection: React.FC<NotesSectionProps> = ({ notes, onUpdate, onDelete, 
     );
   }
   return (
-    <section className="notes-section">
+    <section className="notes-section" ref={containerRef}>
       <div className="notes-header">
         <h2>Your Notes</h2>
         <button className="btn btn-secondary" onClick={onExport}>Export JSON</button>
@@ -160,14 +186,22 @@ const NotesSection: React.FC<NotesSectionProps> = ({ notes, onUpdate, onDelete, 
           <NoteItem key={n.id} note={n} onUpdate={onUpdate} onDelete={onDelete} />
         ))}
       </div>
+      {hasMore && <div className="load-more-indicator">Scroll for more...</div>}
     </section>
   );
 };
 
-const ToastContainer: React.FC<{ toasts: Array<{ id: number; text: string }> }> = ({ toasts }) => {
+interface Toast {
+  id: number;
+  text: string;
+}
+interface ToastContainerProps {
+  toasts: Toast[];
+}
+const ToastContainer: React.FC<ToastContainerProps> = ({ toasts }) => {
   return (
     <div className="toast-container">
-      {toasts.map(t => (
+  {toasts.map((t: Toast) => (
         <div key={t.id} className="toast">
           <span className="toast-icon">✅</span>
           <span className="toast-text">{t.text}</span>
@@ -178,7 +212,7 @@ const ToastContainer: React.FC<{ toasts: Array<{ id: number; text: string }> }> 
 };
 
 const App: React.FC = () => {
-  const { notes, state, load, add, update, remove, exportJSON } = useNotes();
+  const { notes, state, hasMore, load, loadMore, add, update, remove, exportJSON } = useNotes();
   const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
 
   const pushToast = useCallback((text: string) => {
@@ -216,7 +250,7 @@ const App: React.FC = () => {
       <QuickAdd onAdd={add} />
       {state === 'error' && <div className="error">Failed to load notes.</div>}
       {state === 'loading' && !notes.length ? <div className="loading">Loading…</div> : null}
-      <NotesSection notes={notes} onUpdate={update} onDelete={remove} onExport={exportJSON} />
+      <NotesSection notes={notes} onUpdate={update} onDelete={remove} onExport={exportJSON} onLoadMore={loadMore} hasMore={hasMore} />
       <ToastContainer toasts={toasts} />
     </div>
   );
