@@ -168,9 +168,14 @@ const App: React.FC = () => {
   const { notes, state, load, add, update, remove, exportJSON } = useNotes();
   useEffect(() => { load(); }, [load]);
   const header = useMemo(() => (
-    <header>
-      <h1>📝 ClipNote</h1>
-      <p className="subtitle">Your offline second brain</p>
+    <header className="app-header">
+      <div className="brand">
+        <img src="../../icons/icon128.png" alt="ClipNote" className="logo" />
+        <div className="titles">
+          <h1>ClipNote</h1>
+          <p className="subtitle">Your offline second brain</p>
+        </div>
+      </div>
     </header>
   ), []);
   return (
