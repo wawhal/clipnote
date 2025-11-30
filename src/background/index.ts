@@ -11,6 +11,7 @@ import { getDatabase, generateId } from '../db';
 import { Note } from '../db/types';
 import { Message, MessageResponse } from './messages';
 import { enqueueProcessing } from './processingQueue';
+import { cropImage } from '../utils/imageProcessing';
 
 // Listen for hotkey commands
 chrome.commands.onCommand.addListener(async (command: string) => {
@@ -131,21 +132,19 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
       // Capture visible tab and crop to selection
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab) return { success: false, error: 'No active tab' };
+      
       const dataUrl = await chrome.tabs.captureVisibleTab();
-      // Create offscreen canvas to crop
-      const imageBitmap = await createImageBitmap(await (await fetch(dataUrl)).blob());
-      const dpr = message.devicePixelRatio || 1;
-      const sx = Math.round((message.x + message.scrollX) * dpr);
-      const sy = Math.round((message.y + message.scrollY) * dpr);
-      const sw = Math.round(message.width * dpr);
-      const sh = Math.round(message.height * dpr);
-
-      const off = new OffscreenCanvas(sw, sh);
-      const ctx = off.getContext('2d');
-      if (!ctx) return { success: false, error: 'Canvas context failed' };
-      ctx.drawImage(imageBitmap, sx, sy, sw, sh, 0, 0, sw, sh);
-      const croppedBlob = await off.convertToBlob({ type: 'image/png' });
-      const croppedDataUrl = await blobToDataURL(croppedBlob);
+      
+      // Use utility function for cropping
+      const croppedDataUrl = await cropImage(dataUrl, {
+        x: message.x,
+        y: message.y,
+        width: message.width,
+        height: message.height,
+        devicePixelRatio: message.devicePixelRatio,
+        scrollX: message.scrollX,
+        scrollY: message.scrollY
+      });
 
       // Save screenshot note with empty text
       const db = await getDatabase();
@@ -275,13 +274,5 @@ function showNotification(message: string) {
     title: 'ClipNote',
     message: message,
     priority: 0
-  });
-}
-
-async function blobToDataURL(blob: Blob): Promise<string> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.readAsDataURL(blob);
   });
 }

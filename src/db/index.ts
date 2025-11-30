@@ -12,6 +12,10 @@ import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
 import { notesSchema } from './notesCollection';
 import { NoteDocument } from './types';
+import { generateId } from '../utils/helpers';
+
+// Export generateId from utils for consistency
+export { generateId };
 
 // Suppress RxDB ReStorage promotional warning
 if (typeof window !== 'undefined' && (window as any).RxDB) {
@@ -63,11 +67,4 @@ export async function getDatabase(): Promise<ClipNoteDatabase> {
     });
   }
   return dbPromise;
-}
-
-/**
- * Helper function to generate unique IDs
- */
-export function generateId(): string {
-  return `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }

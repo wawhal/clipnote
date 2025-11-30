@@ -40,9 +40,14 @@ Schema and types live in `src/db/notesCollection.ts` and `src/db/types.ts`. Quer
 
 - Background checks selection; if none, sends `start-screenshot` to active tab
 - Content `screenshotOverlay.ts` draws selection rectangle, ESC cancels, ENTER confirms; posts rect + DPR + scroll offsets
-- Background uses `chrome.tabs.captureVisibleTab`, crops via `OffscreenCanvas`, saves note with `imageData`
+- Background uses `chrome.tabs.captureVisibleTab`, crops via utility function in `utils/imageProcessing.ts`, saves note with `imageData`
 - Enqueue OCR via `enqueueProcessing({ id, step: 'OCR', retries: 2 })`
-- `ocrWorker.ts` dynamically imports `tesseract.js`, recognizes text, updates note (`text`, `processedAt`)
+- OCR runs in offscreen document (`offscreen/ocr.html`) because service workers lack DOM APIs
+- Tesseract.js loaded from CDN (not bundled) to avoid "document is not defined" errors during webpack build
+- Offscreen document receives message, runs OCR, returns text
+- Background updates note (`text`, `processedAt`)
+
+**Important**: Tesseract must be loaded via script tag in offscreen HTML, not imported in TypeScript, to avoid build-time DOM reference errors.
 
 ## 🔔 Toasts
 
@@ -62,6 +67,15 @@ Common fixes:
 - React TSX: use `import * as React from 'react'`
 - Add `tesseract.js` to `package.json` for OCR
 - If queries fail, ensure `RxDBQueryBuilderPlugin` is enabled in `src/db/index.ts`
+
+## 🧪 Testing
+
+- Jest + ts-jest for TypeScript unit tests
+- Tests in `/tests` mirror `/src` structure
+- Run: `npm test` (single), `npm run test:watch` (watch mode), `npm run test:coverage` (with coverage)
+- Chrome APIs mocked in `tests/setup.ts`
+- Utilities extracted for testability: `utils/helpers.ts`, `utils/imageProcessing.ts`
+- See `TESTING.md` for full testing guide
 
 ## 📁 Key files
 
