@@ -84,9 +84,13 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
       
       await db.notes.insert(note);
       
-      // Show notification and emit toast to UI
+      // Show notification and send toast to the active tab page
       showNotification('ClipNote saved');
-      chrome.runtime.sendMessage({ type: 'toast', text: 'ClipNote saved' });
+      
+      // Send toast message to the tab that triggered the capture
+      if (sender.tab?.id) {
+        chrome.tabs.sendMessage(sender.tab.id, { type: 'toast', text: 'ClipNote saved' });
+      }
       
       return { success: true, data: note };
     }
