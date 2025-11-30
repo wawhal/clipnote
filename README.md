@@ -2,7 +2,7 @@
 
 ClipNote is an offline-first, lightning-fast second brain that removes all friction between having a thought → capturing it → using it later.
 
-This repo defines the v0 architecture: text-only capture, instant hotkeys, and an AI-ready local-first data model that scales to screenshots/OCR later.
+This repo now includes a working MV3 extension with text capture, screenshot capture, on-page toasts, RxDB storage with pagination, and an asynchronous OCR queue using Tesseract.js.
 
 ---
 
@@ -195,9 +195,18 @@ index.ts
 notesCollection.ts
 
 /ui
-popup.html
-popup.ts
+ popup.html
+ popup.tsx
 styles.css
+
+## Developer docs map
+
+- Setup: `SETUP.md`
+- Development workflow: `DEVELOPMENT.md`
+- Architecture overview: `docs/architecture.md`
+- Quick commands and structure: `QUICK_REFERENCE.md`
+- Contribution guidelines: `CONTRIBUTING.md`
+- Knowledge base: `docs/knowledge-base.md`
 
 manifest.json
 README.md
