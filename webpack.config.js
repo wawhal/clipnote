@@ -8,7 +8,6 @@ module.exports = {
     'content/toast': './src/content/toast.ts',
     'content/screenshotOverlay': './src/content/screenshotOverlay.ts',
     'content/hotkeyListener': './src/content/hotkeyListener.ts',
-    'content/ocrContent': './src/content/ocrContent.ts',
     'offscreen/ocr': './src/offscreen/ocr.ts',
     'ui/popup': './src/ui/popup.tsx'
   },
@@ -27,7 +26,11 @@ module.exports = {
     ]
   },
   resolve: {
-    extensions: ['.ts', '.tsx', '.js', '.jsx']
+    extensions: ['.ts', '.tsx', '.js', '.jsx'],
+    fallback: {
+      'fs': false,
+      'path': false
+    }
   },
   plugins: [
     new CopyPlugin({

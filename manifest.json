@@ -10,6 +10,9 @@
     "scripting",
     "offscreen"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
   "background": {
     "service_worker": "background/index.js",
     "type": "module"
@@ -17,7 +20,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content/hotkeyListener.js", "content/textCapture.js", "content/toast.js", "content/screenshotOverlay.js", "content/ocrContent.js"],
+      "js": ["content/hotkeyListener.js", "content/textCapture.js", "content/toast.js", "content/screenshotOverlay.js"],
       "run_at": "document_start"
     }
   ],

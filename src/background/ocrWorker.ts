@@ -1,38 +1,42 @@
 /**
- * Stub OCR worker
- * Intentionally minimal: logs start and completion only.
- * Actual OCR implementation intentionally removed per user request.
+ * OCR Worker - delegates to offscreen document
  */
 import type { QueueItem } from './processingQueue';
 import { getDatabase } from '../db';
 
 /**
- * Ensure offscreen document exists for OCR processing
+ * Ensure offscreen document exists
  */
 async function ensureOffscreenDocument() {
   try {
-    // @ts-ignore - offscreen API may not be in all Chrome types
+    // @ts-ignore
     const existingContexts = await chrome.runtime.getContexts({
       contextTypes: ['OFFSCREEN_DOCUMENT']
     });
     
     if (existingContexts.length > 0) {
-      console.log('[ClipNote] Offscreen document already exists');
-      return; // Already exists
+      return;
     }
     
     console.log('[ClipNote] Creating offscreen document...');
-    // Create offscreen document
-    // @ts-ignore - offscreen API
+    // @ts-ignore
     await chrome.offscreen.createDocument({
       url: 'src/offscreen/ocr.html',
       reasons: ['WORKERS' as any],
-      justification: 'Run OCR processing with Tesseract.js Web Workers'
+      justification: 'Run OCR processing with Tesseract.js'
     });
     
-    // Wait a bit for the document to load
-    await new Promise(resolve => setTimeout(resolve, 500));
-    console.log('[ClipNote] Offscreen document created');
+    console.log('[ClipNote] Offscreen document created, waiting for initialization...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Verify it's still there
+    // @ts-ignore
+    const contexts = await chrome.runtime.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT']
+    });
+    console.log('[ClipNote] Offscreen contexts after creation:', contexts.length);
+    
+    console.log('[ClipNote] Attempting to communicate with offscreen document');
   } catch (err) {
     console.error('[ClipNote] Failed to create offscreen document:', err);
     throw err;
@@ -40,7 +44,7 @@ async function ensureOffscreenDocument() {
 }
 
 /**
- * Run OCR using offscreen document (not affected by page CSP)
+ * Delegate OCR to offscreen document
  */
 const tesseractOCR = async (imageBase64: string): Promise<string> => {
   await ensureOffscreenDocument();
@@ -52,7 +56,7 @@ const tesseractOCR = async (imageBase64: string): Promise<string> => {
         settled = true;
         reject(new Error('OCR offscreen document did not respond in time'));
       }
-    }, 30000); // Longer timeout for OCR processing
+    }, 30000);
 
     chrome.runtime.sendMessage(
       { type: 'perform-ocr-offscreen', imageData: imageBase64 },
@@ -83,7 +87,6 @@ export async function runOCR(item: QueueItem) {
   try {
     console.log('[ClipNote] OCR Started', { id: item.id });
 
-    // get image data from note id
     const db = await getDatabase();
     const doc = await db.notes.findOne(item.id).exec();
     if (!doc) {
@@ -96,23 +99,22 @@ export async function runOCR(item: QueueItem) {
       console.warn('[ClipNote] OCR: no imageData on note', { id: item.id });
       return;
     }
-    console.log('[ClipNote] OCR: image size', imageBase64.length);
 
-    // implement OCR
-  const recognizedText = await tesseractOCR(imageBase64);
-  console.log('[ClipNote] OCR: recognized text length', recognizedText?.length ?? 0);
+    const recognizedText = await tesseractOCR(imageBase64);
+    console.log('[ClipNote] OCR: recognized text length', recognizedText?.length ?? 0);
 
-    // Persist recognized text back to the note using update plugin
     if (typeof (doc as any).update === 'function') {
       await (doc as any).update({ $set: { text: recognizedText } });
     } else if (typeof (doc as any).atomicPatch === 'function') {
       await (doc as any).atomicPatch({ text: recognizedText });
-    } else {
-      console.warn('[ClipNote] OCR: document update methods not available');
     }
 
     console.log('[ClipNote] OCR Completed', { id: item.id });
   } catch (err: any) {
-    console.error('[ClipNote] OCR Error (stub)', err, err?.stack);
+    const errorMsg = err?.message || err?.toString() || 'Unknown error';
+    const errorStack = err?.stack || '';
+    console.error('[ClipNote] OCR Error:', errorMsg);
+    console.error('[ClipNote] OCR Error stack:', errorStack);
+    console.error('[ClipNote] OCR Error full:', err);
   }
 }
