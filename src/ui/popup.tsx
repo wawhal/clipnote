@@ -164,9 +164,41 @@ const NotesSection: React.FC<NotesSectionProps> = ({ notes, onUpdate, onDelete, 
   );
 };
 
+const ToastContainer: React.FC<{ toasts: Array<{ id: number; text: string }> }> = ({ toasts }) => {
+  return (
+    <div className="toast-container">
+      {toasts.map(t => (
+        <div key={t.id} className="toast">
+          <span className="toast-icon">✅</span>
+          <span className="toast-text">{t.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const { notes, state, load, add, update, remove, exportJSON } = useNotes();
+  const [toasts, setToasts] = useState<Array<{ id: number; text: string }>>([]);
+
+  const pushToast = useCallback((text: string) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, text }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 2000);
+  }, []);
+
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const handler = (msg: Message) => {
+      if ((msg as any).type === 'toast' && (msg as any).text) {
+        pushToast((msg as any).text);
+      }
+    };
+    chrome.runtime.onMessage.addListener(handler as any);
+    return () => chrome.runtime.onMessage.removeListener(handler as any);
+  }, [pushToast]);
+
   const header = useMemo(() => (
     <header className="app-header">
       <div className="brand">
@@ -185,6 +217,7 @@ const App: React.FC = () => {
       {state === 'error' && <div className="error">Failed to load notes.</div>}
       {state === 'loading' && !notes.length ? <div className="loading">Loading…</div> : null}
       <NotesSection notes={notes} onUpdate={update} onDelete={remove} onExport={exportJSON} />
+      <ToastContainer toasts={toasts} />
     </div>
   );
 };

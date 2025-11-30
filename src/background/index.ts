@@ -84,8 +84,9 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
       
       await db.notes.insert(note);
       
-      // Show notification
-      showNotification('Note saved!');
+      // Show notification and emit toast to UI
+      showNotification('ClipNote saved');
+      chrome.runtime.sendMessage({ type: 'toast', text: 'ClipNote saved' });
       
       return { success: true, data: note };
     }
@@ -100,6 +101,8 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
       };
       
       await db.notes.insert(note);
+      // Emit toast when note added via popup
+      chrome.runtime.sendMessage({ type: 'toast', text: 'ClipNote saved' });
       
       return { success: true, data: note };
     }

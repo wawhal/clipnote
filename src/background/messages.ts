@@ -17,7 +17,8 @@ export type Message =
   | { type: 'delete-note'; id: string }
   | { type: 'update-note'; id: string; content: string }
   | { type: 'export-notes' }
-  | { type: 'show-notification'; message: string };
+  | { type: 'show-notification'; message: string }
+  | { type: 'toast'; text: string };
 
 export interface MessageResponse<T = any> {
   success: boolean;
