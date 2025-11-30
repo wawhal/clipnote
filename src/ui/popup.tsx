@@ -124,6 +124,10 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onUpdate, onDelete }: NoteIte
     if (draft.trim() && draft !== note.content) onUpdate(note.id, draft.trim());
     setEditing(false);
   };
+  
+  const isScreenshot = note.type === 'screenshot';
+  const hasText = note.text || note.content;
+  
   return (
     <div className="note-item" data-id={note.id}>
       <div className="note-header">
@@ -132,6 +136,15 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onUpdate, onDelete }: NoteIte
           <a href={note.source.url} target="_blank" rel="noreferrer" className="note-source">🔗 Source</a>
         )}
       </div>
+      
+      {/* Render screenshot image if present */}
+      {isScreenshot && note.imageData && (
+        <div className="note-screenshot">
+          <img src={note.imageData} alt="Screenshot" style={{ maxWidth: '100%', borderRadius: '4px', marginBottom: '8px' }} />
+        </div>
+      )}
+      
+      {/* Render text content */}
       {editing ? (
         <textarea
           className="note-content-edit"
@@ -141,7 +154,9 @@ const NoteItem: React.FC<NoteItemProps> = ({ note, onUpdate, onDelete }: NoteIte
           autoFocus
         />
       ) : (
-  <div className="note-content" role="textbox" onClick={() => setEditing(true)}>{note.content}</div>
+        <div className="note-content" role="textbox" onClick={() => setEditing(true)}>
+          {hasText || (isScreenshot ? 'Processing OCR...' : 'Empty note')}
+        </div>
       )}
       <div className="note-actions">
         <button className="btn-icon" title="Delete" onClick={() => onDelete(note.id)}>🗑️</button>

@@ -18,6 +18,10 @@ Message types are defined in `src/background/messages.ts`. Typical flows:
 - Screenshot: background triggers overlay → content returns rect → background captures, crops, saves → queue OCR → toast
 - Pagination: UI asks background `get-notes?skip&limit` → background queries RxDB and returns slice
 
+**Hotkey handling**: Uses dual approach for reliability:
+- `chrome.commands` API (manifest) - works most places but can be blocked by aggressive page JS
+- Content script listener (`hotkeyListener.ts`) - captures at DOM level with `capture: true` phase, bypasses page handlers (works on Gmail, ChatGPT, etc.)
+
 Keep messages explicit and version when changing shapes.
 
 ## 🗃️ Data model (RxDB)

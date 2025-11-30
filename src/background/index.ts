@@ -26,22 +26,35 @@ chrome.commands.onCommand.addListener(async (command: string) => {
   const tabId = tab.id; // Store tabId for later use
   
   try {
-    await chrome.scripting.executeScript({
+    // Check for selection first
+    const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () => {
-        const selectedText = window.getSelection()?.toString().trim() || '';
-        if (selectedText) {
-          chrome.runtime.sendMessage({
-            type: 'capture-text',
-            text: selectedText,
-            url: window.location.href
-          });
-        } else {
-          // Open screenshot overlay when no selection
-          chrome.runtime.sendMessage({ type: 'start-screenshot' });
-        }
+        return window.getSelection()?.toString().trim() || '';
       }
     });
+    
+    const selectedText = results[0]?.result || '';
+    
+    if (selectedText) {
+      // Capture text
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (text: string, url: string) => {
+          chrome.runtime.sendMessage({
+            type: 'capture-text',
+            text: text,
+            url: url
+          });
+        },
+        args: [selectedText, tab.url]
+      });
+    } else {
+      // Trigger screenshot overlay in the content script
+      chrome.tabs.sendMessage(tabId, { type: 'start-screenshot' }).catch(() => {
+        showNotification('Screenshot overlay failed to load');
+      });
+    }
   } catch (err) {
     console.error('Injection failed', err);
     showNotification('Capture failed');
@@ -72,6 +85,17 @@ async function handleMessage(message: Message, sender: chrome.runtime.MessageSen
   const db = await getDatabase();
   
   switch (message.type) {
+    case 'start-screenshot-content': {
+      // Content script hotkey triggered screenshot mode
+      // Route to the sender tab
+      if (sender.tab?.id) {
+        chrome.tabs.sendMessage(sender.tab.id, { type: 'start-screenshot' }).catch(() => {
+          showNotification('Screenshot overlay failed');
+        });
+      }
+      return { success: true };
+    }
+    
     case 'capture-text': {
       const note: Note = {
         id: generateId(),

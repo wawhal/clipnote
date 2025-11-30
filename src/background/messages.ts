@@ -12,6 +12,7 @@ import { Note } from '../db/types';
 export type Message =
   | { type: 'capture-text'; text: string; url: string }
   | { type: 'start-screenshot' }
+  | { type: 'start-screenshot-content' } // From content script hotkey
   | { type: 'screenshot-rect'; x: number; y: number; width: number; height: number; devicePixelRatio: number; scrollX: number; scrollY: number; url: string }
   | { type: 'save-note'; note: Omit<Note, 'id' | 'createdAt'> }
   | { type: 'get-notes'; limit?: number; skip?: number }
