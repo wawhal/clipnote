@@ -10,22 +10,33 @@ import { getDatabase } from '../db';
  * Ensure offscreen document exists for OCR processing
  */
 async function ensureOffscreenDocument() {
-  // @ts-ignore - offscreen API may not be in all Chrome types
-  const existingContexts = await chrome.runtime.getContexts({
-    contextTypes: ['OFFSCREEN_DOCUMENT']
-  });
-  
-  if (existingContexts.length > 0) {
-    return; // Already exists
+  try {
+    // @ts-ignore - offscreen API may not be in all Chrome types
+    const existingContexts = await chrome.runtime.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT']
+    });
+    
+    if (existingContexts.length > 0) {
+      console.log('[ClipNote] Offscreen document already exists');
+      return; // Already exists
+    }
+    
+    console.log('[ClipNote] Creating offscreen document...');
+    // Create offscreen document
+    // @ts-ignore - offscreen API
+    await chrome.offscreen.createDocument({
+      url: 'src/offscreen/ocr.html',
+      reasons: ['WORKERS' as any],
+      justification: 'Run OCR processing with Tesseract.js Web Workers'
+    });
+    
+    // Wait a bit for the document to load
+    await new Promise(resolve => setTimeout(resolve, 500));
+    console.log('[ClipNote] Offscreen document created');
+  } catch (err) {
+    console.error('[ClipNote] Failed to create offscreen document:', err);
+    throw err;
   }
-  
-  // Create offscreen document
-  // @ts-ignore - offscreen API
-  await chrome.offscreen.createDocument({
-    url: 'src/offscreen/ocr.html',
-    reasons: ['WORKERS' as any],
-    justification: 'Run OCR processing with Tesseract.js Web Workers'
-  });
 }
 
 /**

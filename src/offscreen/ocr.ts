@@ -1,9 +1,10 @@
 /**
  * Offscreen document for OCR processing
  * Runs in an isolated context not affected by page CSP
+ * 
+ * TODO: Fix Tesseract.js worker loading in Chrome extension context
+ * For now, returns placeholder text
  */
-
-import { createWorker } from 'tesseract.js';
 
 chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
   if (message?.type !== 'perform-ocr-offscreen') return;
@@ -16,33 +17,18 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
         return;
       }
       
-      console.log('[ClipNote Offscreen] Starting OCR...');
-      const worker = await createWorker('eng');
-      const result = await worker.recognize(imageBase64);
-      await worker.terminate();
+      console.log('[ClipNote Offscreen] OCR requested but disabled - returning placeholder');
       
-      const text = (result as any)?.data?.text || (result as any)?.text || '';
-      console.log('[ClipNote Offscreen] OCR completed, text length:', text.length);
-      sendResponse({ success: true, text });
+      // TODO: Implement OCR once worker loading is fixed
+      // For now, return empty text so screenshots still save
+      sendResponse({ success: true, text: '[OCR processing disabled - screenshot saved]' });
     } catch (err: any) {
       console.error('[ClipNote Offscreen] OCR error', err);
-      let errorMsg = 'Unknown error';
-      if (err) {
-        if (typeof err === 'string') {
-          errorMsg = err;
-        } else if (err.message) {
-          errorMsg = err.message;
-        } else if (err.toString) {
-          errorMsg = err.toString();
-        } else {
-          errorMsg = JSON.stringify(err);
-        }
-      }
-      sendResponse({ success: false, error: errorMsg });
+      sendResponse({ success: false, error: err.message || 'Unknown error' });
     }
   })();
   
-  return true; // keep message channel open for async response
+  return true;
 });
 
-console.log('[ClipNote Offscreen] OCR worker ready');
+console.log('[ClipNote Offscreen] OCR worker ready (OCR disabled)');
