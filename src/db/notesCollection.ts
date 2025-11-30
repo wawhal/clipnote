@@ -11,7 +11,7 @@ import { NoteDocument } from './types';
 
 export const notesSchema: RxJsonSchema<NoteDocument> = {
   title: 'ClipNote Notes Collection',
-  version: 0,
+  version: 1, // Bumped from 0 to 1 (removed rawText field)
   primaryKey: 'id',
   type: 'object',
   properties: {
